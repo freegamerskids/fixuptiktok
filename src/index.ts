@@ -52,11 +52,14 @@ async function getVideoInfo(url: string) {
 
 async function getTikwmUrl(path: string): Promise<string> {
 	let url = "https://www.tikwm.com" + path;
+	/* Fallback if this doesn't work
 	let req = await fetch(url, {
 		redirect: "manual"
 	})
 	let loc = new URL(req['headers'].get('location')! ?? url)
-	return `https://${loc.hostname}${loc.pathname}`;
+	url = `https://${loc.hostname}${loc.pathname}`
+	*/
+	return url;
 }
 
 async function getVideo(url: URL, ctx:ExecutionContext): Promise<IVideo> {
@@ -114,16 +117,28 @@ function owoembed(url: URL):string {
 	});
 }
 
+async function getFullPath({ pathname, hostname, href }: URL): Promise<string> {
+	if (pathname.match(/\/@.*\/video\/\d*/gm)) return pathname;
+	if (hostname.includes('vm')) {
+		let req = await fetch(`https://vm.tiktok.com${pathname}`, { redirect: "manual" });
+		let loc = new URL(req['headers'].get('location')!);
+		return loc.pathname;
+	}
+	return ""
+}
+
 export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 		const isApiRequest = request.url.includes("/api/");
 		const url = new URL(request.url.replace('/api/','/'));
-		const { pathname, hostname } = url;
 
-		if (pathname === "/owoembed") return new Response(owoembed(url), { headers: { 'Content-Type': 'application/json' } });
-		if (!pathname.match(/\/@.*\/video\/\d*/gm)) return Response.redirect('https://github.com/freegamerskids/fixuptiktok', 301);
+		if (url.pathname === "/owoembed") return new Response(owoembed(url), { headers: { 'Content-Type': 'application/json' } });
 
-		let videoApi: IVideo = await getVideo(url, ctx);
+		const fullURL = new URL(`https://${url.hostname}${await getFullPath(url)}`);
+		const { pathname } = fullURL;
+		if (pathname === "") return Response.redirect('https://github.com/freegamerskids/fixuptiktok', 301);
+
+		let videoApi: IVideo = await getVideo(fullURL, ctx);
 		if (isApiRequest) return new Response(JSON.stringify(videoApi), { headers: { 'Content-Type': 'application/json' } });
 
 		const stats = `${videoApi.likeCount} ❤️ ${videoApi.commentCount} 💬 ${videoApi.shareCount} 🔁 ${videoApi.views} 👁️`;
@@ -147,7 +162,7 @@ export default {
 
 			`<meta property="og:description" content="${videoApi.description}" />`,
 
-			`<link rel="alternate" href="https://${hostname}/owoembed?text=${encodeURIComponent(videoApi.description)}&url=https://tiktok.com${pathname}&stats=${encodeURIComponent(`${stats} / Provided by FixUpTiktok`)}" type="application/json+oembed" title="${videoApi.user.nickname}">`,
+			`<link rel="alternate" href="https://${url.hostname}/owoembed?text=${encodeURIComponent(videoApi.description)}&url=https://tiktok.com${pathname}&stats=${encodeURIComponent(`${stats} / Provided by FixUpTiktok`)}" type="application/json+oembed" title="${videoApi.user.nickname}">`,
 			`<meta http-equiv="refresh" content="0; url = https://tiktok.com${pathname}" />`
 		]
 
