@@ -18,11 +18,6 @@ interface IMusic {
 	playUrl: string;
 }
 
-interface IVideoSource {
-	thumbnail: string;
-	playUrl: string;
-}
-
 interface IVideo {
 	id: string;
 	description: string;
@@ -32,7 +27,7 @@ interface IVideo {
 	views: number;
 	user: IUser;
 	music: IMusic;
-	videoSource: IVideoSource;
+	playUrl: string;
 }
 
 async function getVideoInfo(url: string) {
@@ -57,8 +52,13 @@ async function getVideoInfo(url: string) {
 	return noWaterJson;
 }
 
-function getTikwmUrl(path: string): string {
-	return "https://www.tikwm.com" + path;
+async function getTikwmUrl(path: string): Promise<string> {
+	let url = "https://www.tikwm.com" + path;
+	let req = await fetch(url, {
+		redirect: "manual"
+	})
+	let loc = new URL(req['headers'].get('location')! ?? url)
+	return `https://${loc.hostname}${loc.pathname}`;
 }
 
 async function getVideo(url: URL, ctx:ExecutionContext): Promise<IVideo> {
@@ -87,18 +87,15 @@ async function getVideo(url: URL, ctx:ExecutionContext): Promise<IVideo> {
             id: video.author.id,
             username: video.author.unique_id,
             nickname: video.author.nickname,
-            avatar: getTikwmUrl(video.author.avatar)
+            avatar: await getTikwmUrl(video.author.avatar)
         },
         music: {
             id: video.music_info.id,
             title: video.music_info.title,
             creatorName: video.music_info.author,
-			playUrl: getTikwmUrl(video.music)
+			playUrl: await getTikwmUrl(video.music)
         },
-		videoSource: {
-            thumbnail: getTikwmUrl(video.cover),
-            playUrl: getTikwmUrl(video.hdplay)
-		}
+        playUrl: await getTikwmUrl(video.hdplay)
 	};
 
 	ctx.waitUntil(cache.put(new Request(url.toString()), new Response(JSON.stringify(videoApi))));
@@ -111,7 +108,7 @@ function owoembed(url: URL):string {
 	return JSON.stringify({
 		"author_name": searchParams.get('text'),
         "author_url": searchParams.get('url'),
-        "provider_name": "FixUpTiktok",
+        "provider_name": searchParams.get('stats'),
         "provider_url": "https://github.com/freegamerskids/fixuptiktok",
         "title": "TikTok",
         "type": "link",
@@ -125,10 +122,12 @@ export default {
 		const url = new URL(request.url.replace('/api/','/'));
 		const { pathname, hostname } = url;
 
+		console.log(request.headers?.get("User-Agent"));
+
 		if (pathname === "/owoembed") return new Response(owoembed(url), { headers: { 'Content-Type': 'application/json' } });
 		if (!pathname.match(/\/@.*\/video\/\d*/gm)) return Response.redirect('https://github.com/freegamerskids/fixuptiktok', 301);
 
-		if (!request.headers?.get("User-Agent")?.match(botRegex) && !isApiRequest) return Response.redirect(`https://tiktok.com${pathname}`, 301);
+		//if (!request.headers?.get("User-Agent")?.match(botRegex) && !isApiRequest) return Response.redirect(`https://tiktok.com${pathname}`, 301);
 
 		let videoApi: IVideo = await getVideo(url, ctx);
 		if (isApiRequest) return new Response(JSON.stringify(videoApi), { headers: { 'Content-Type': 'application/json' } });
@@ -138,25 +137,24 @@ export default {
 		const metaTags = [
 			`<meta content='text/html; charset=UTF-8' http-equiv='Content-Type' />`,
 			`<meta name="theme-color" content="#8100AB"/>`,
-			`<meta property="og:site_name" content="FixUpTiktok" />`,
+			`<meta property="og:site_name" content="${stats} / Provided by FixUpTiktok" />`,
 
 			`<meta name="twitter:card" content="player" />`,
 			`<meta name="twitter:title" content="${videoApi.user.nickname} (@${videoApi.user.username})" />`,
-			`<meta name="twitter:image" content="${videoApi.videoSource.thumbnail}" />`,
-			`<meta name="twitter:player:stream" content="${videoApi.videoSource.playUrl}" />`,
+			`<meta name="twitter:player:stream" content="${videoApi.playUrl}" />`,
 			`<meta name="twitter:player:stream:content_type" content="video/mp4" />`,
+			`<meta name="twitter:description" content="${videoApi.description}" />`,
 
 			`<meta property="og:title" content="${videoApi.user.nickname} (@${videoApi.user.username})"/>`,
 			`<meta property="og:type" content="video.other"/>`,
-			`<meta property="og:video" content="${videoApi.videoSource.playUrl}"/>`,
-			`<meta property="og:video:secure_url" content="${videoApi.videoSource.playUrl}"/>`,
+			`<meta property="og:video:url" content="${videoApi.playUrl}"/>`,
+			`<meta property="og:video:secure_url" content="${videoApi.playUrl}"/>`,
 			`<meta property="og:video:type" content="video/mp4"/>`,
-			`<meta property="og:image" content="${videoApi.videoSource.thumbnail}"/>`,
 
-			`<meta property="og:description" content="${videoApi.description}"/>`,
+			`<meta property="og:description" content="${videoApi.description}" />`,
 
-			`<link rel="alternate" href="https://${hostname}/owoembed?text=${stats}&url=https://titkok.com${pathname}" type="application/json+oembed" title="${videoApi.user.nickname}">`,
-			`<meta http-equiv="refresh" content="0; url = https://titkok.com${pathname}" />`
+			`<link rel="alternate" href="https://${hostname}/owoembed?text=${encodeURIComponent(videoApi.description)}&url=https://tiktok.com${pathname}&stats=${encodeURIComponent(`${stats} / Provided by FixUpTiktok`)}" type="application/json+oembed" title="${videoApi.user.nickname}">`,
+			`<meta http-equiv="refresh" content="0; url = https://tiktok.com${pathname}" />`
 		]
 
 		return new Response(HTML_EMBED_TEMPLATE.replace("{}", metaTags.join("\n")), { headers: { 'Content-Type': 'text/html' } })
