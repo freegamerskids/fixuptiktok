@@ -155,6 +155,7 @@ export default {
 			`<meta name="twitter:player:stream:content_type" content="video/mp4" />`,
 			`<meta name="twitter:description" content="${description}" />`,
 
+			`<meta property="og:url" content="https://tiktok.com/@${videoApi.user.username}"/>`,
 			`<meta property="og:title" content="${videoApi.user.nickname} (@${videoApi.user.username})"/>`,
 			`<meta property="og:type" content="video.other"/>`,
 			`<meta property="og:video:url" content="${videoApi.playUrl}"/>`,
