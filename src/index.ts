@@ -1,7 +1,5 @@
 import { HTML_EMBED_TEMPLATE } from './strings';
 
-const botRegex = /(discordbot|telegrambot|facebook|whatsapp|firefox\/92|vkshare|revoltchat|preview)/gi;
-
 export interface Env {}
 
 interface IUser{
@@ -95,7 +93,7 @@ async function getVideo(url: URL, ctx:ExecutionContext): Promise<IVideo> {
             creatorName: video.music_info.author,
 			playUrl: await getTikwmUrl(video.music)
         },
-        playUrl: await getTikwmUrl(video.hdplay)
+        playUrl: await getTikwmUrl(video.play)
 	};
 
 	ctx.waitUntil(cache.put(new Request(url.toString()), new Response(JSON.stringify(videoApi))));
@@ -122,12 +120,8 @@ export default {
 		const url = new URL(request.url.replace('/api/','/'));
 		const { pathname, hostname } = url;
 
-		console.log(request.headers?.get("User-Agent"));
-
 		if (pathname === "/owoembed") return new Response(owoembed(url), { headers: { 'Content-Type': 'application/json' } });
 		if (!pathname.match(/\/@.*\/video\/\d*/gm)) return Response.redirect('https://github.com/freegamerskids/fixuptiktok', 301);
-
-		//if (!request.headers?.get("User-Agent")?.match(botRegex) && !isApiRequest) return Response.redirect(`https://tiktok.com${pathname}`, 301);
 
 		let videoApi: IVideo = await getVideo(url, ctx);
 		if (isApiRequest) return new Response(JSON.stringify(videoApi), { headers: { 'Content-Type': 'application/json' } });
