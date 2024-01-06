@@ -35,10 +35,6 @@ interface IVideo {
 	videoSource: IVideoSource;
 }
 
-function decode(url: string): string {
-	return url.replace("\\u002F", "/")
-}
-
 async function getVideoInfo(url: string) {
 	const req = await fetch("https://www.tikwm.com/api/", {
 		method: "POST",
@@ -130,7 +126,7 @@ export default {
 		const { pathname, hostname } = url;
 
 		if (pathname === "/owoembed") return new Response(owoembed(url), { headers: { 'Content-Type': 'application/json' } });
-		if (!pathname.match(/\/@.*\/video\/\d*/gm)) return new Response('invalid video url');
+		if (!pathname.match(/\/@.*\/video\/\d*/gm)) return Response.redirect('https://github.com/freegamerskids/fixuptiktok', 301);
 
 		if (!request.headers?.get("User-Agent")?.match(botRegex) && !isApiRequest) return Response.redirect(`https://tiktok.com${pathname}`, 301);
 
