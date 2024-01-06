@@ -1,0 +1,1 @@
+export const HTML_EMBED_TEMPLATE = `<html><head>{}</head></html>`;
