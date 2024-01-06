@@ -117,9 +117,9 @@ function owoembed(url: URL):string {
 	});
 }
 
-async function getFullPath({ pathname, hostname, href }: URL): Promise<string> {
+async function getFullPath({ pathname, hostname }: URL): Promise<string> {
 	if (pathname.match(/\/@.*\/video\/\d*/gm)) return pathname;
-	if (hostname.includes('vm')) {
+	if (hostname.includes('vm') && !pathname.includes('favicon.ico')) {
 		let req = await fetch(`https://vm.tiktok.com${pathname}`, { redirect: "manual" });
 		let loc = new URL(req['headers'].get('location')!);
 		return loc.pathname;
@@ -142,6 +142,7 @@ export default {
 		if (isApiRequest) return new Response(JSON.stringify(videoApi), { headers: { 'Content-Type': 'application/json' } });
 
 		const stats = `${videoApi.likeCount} ❤️ ${videoApi.commentCount} 💬 ${videoApi.shareCount} 🔁 ${videoApi.views} 👁️`;
+		const description = videoApi.description.substring(0,250) + '...';
 
 		const metaTags = [
 			`<meta content='text/html; charset=UTF-8' http-equiv='Content-Type' />`,
@@ -152,7 +153,7 @@ export default {
 			`<meta name="twitter:title" content="${videoApi.user.nickname} (@${videoApi.user.username})" />`,
 			`<meta name="twitter:player:stream" content="${videoApi.playUrl}" />`,
 			`<meta name="twitter:player:stream:content_type" content="video/mp4" />`,
-			`<meta name="twitter:description" content="${videoApi.description}" />`,
+			`<meta name="twitter:description" content="${description}" />`,
 
 			`<meta property="og:title" content="${videoApi.user.nickname} (@${videoApi.user.username})"/>`,
 			`<meta property="og:type" content="video.other"/>`,
@@ -160,9 +161,9 @@ export default {
 			`<meta property="og:video:secure_url" content="${videoApi.playUrl}"/>`,
 			`<meta property="og:video:type" content="video/mp4"/>`,
 
-			`<meta property="og:description" content="${videoApi.description}" />`,
+			`<meta property="og:description" content="${description}" />`,
 
-			`<link rel="alternate" href="https://${url.hostname}/owoembed?text=${encodeURIComponent(videoApi.description)}&url=https://tiktok.com${pathname}&stats=${encodeURIComponent(`${stats} / Provided by FixUpTiktok`)}" type="application/json+oembed" title="${videoApi.user.nickname}">`,
+			`<link rel="alternate" href="https://${url.hostname}/owoembed?text=${encodeURIComponent(description)}&url=https://tiktok.com${pathname}&stats=${encodeURIComponent(`${stats} / Provided by FixUpTiktok`)}" type="application/json+oembed" title="${videoApi.user.nickname}">`,
 			`<meta http-equiv="refresh" content="0; url = https://tiktok.com${pathname}" />`
 		]
 
