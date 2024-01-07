@@ -131,6 +131,7 @@ export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 		const isApiRequest = request.url.includes("/api/");
 		const url = new URL(request.url.replace('/api/','/'));
+		const ua = request.headers.get('User-Agent');
 
 		if (url.pathname === "/owoembed") return new Response(owoembed(url), { headers: { 'Content-Type': 'application/json' } });
 
@@ -142,7 +143,7 @@ export default {
 		if (isApiRequest) return new Response(JSON.stringify(videoApi), { headers: { 'Content-Type': 'application/json' } });
 
 		const stats = `${videoApi.likeCount} ❤️ ${videoApi.commentCount} 💬 ${videoApi.shareCount} 🔁 ${videoApi.views} 👁️`;
-		const description = videoApi.description.substring(0,250) + '...';
+		const description = videoApi.description.substring(0,250) + (videoApi.description.length <= 250 ? "" : '...');
 
 		const metaTags = [
 			`<meta content='text/html; charset=UTF-8' http-equiv='Content-Type' />`,
@@ -165,7 +166,7 @@ export default {
 			`<meta property="og:description" content="${description}" />`,
 
 			`<link rel="alternate" href="https://${url.hostname}/owoembed?text=${encodeURIComponent(description)}&url=https://tiktok.com${pathname}&stats=${encodeURIComponent(`${stats} / Provided by FixUpTiktok`)}" type="application/json+oembed" title="${videoApi.user.nickname}">`,
-			`<meta http-equiv="refresh" content="0; url = https://tiktok.com${pathname}" />`
+			ua?.toLocaleLowerCase().includes('telegram') ? "" : `<meta http-equiv="refresh" content="0; url = https://tiktok.com${pathname}" />`
 		]
 
 		return new Response(HTML_EMBED_TEMPLATE.replace("{}", metaTags.join("\n")), { headers: { 'Content-Type': 'text/html' } })
