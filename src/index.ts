@@ -123,8 +123,8 @@ function owoembed(url: URL):string {
 
 async function getFullPath({ pathname, hostname }: URL): Promise<string> {
 	if (pathname.match(/\/@.*\/video\/\d*/gm)) return pathname;
-	if ((hostname.includes('vm') || hostname.includes('vt'))&& !pathname.includes('favicon.ico')) {
-		let req = await fetch(`https://${hostname}${pathname}`, { redirect: "manual" });
+	if ((hostname.includes('vm') || hostname.includes('vt')) && !pathname.includes('favicon.ico')) {
+		let req = await fetch(`https://vm.tiktok.com${pathname}`, { redirect: "manual" });
 		let loc = new URL(req['headers'].get('location')!);
 		return loc.pathname;
 	}
