@@ -32,12 +32,16 @@ async function getVideoInfo(url: string) {
 	const req = await fetch("https://www.tikwm.com/api/", {
 		method: "POST",
 		headers: { "Content-Type": "application/x-www-form-urlencoded" },
-		body: new URLSearchParams({ url , count: "12" , cursor: "0" , web: "1", hd: "1"}).toString()
+		body: new URLSearchParams({ url , count: "12" , cursor: "0" , web: "1", hd: "1"}).toString(),
+		cf: {
+			cacheTtlByStatus: { "200-299": 600, 404: 1, "500-599": 0 }, // 10 mins, 1 second, no cache
+			cacheEverything: true
+		}
 	});
 
 	if (!req.ok) {
 		throw new Error(
-		  "There was an Error retrieveing this video without watermark!"
+		  "There was an Error retrieving this video without watermark!"
 		);
 	}
 	const noWaterJson: any = await req.json();
@@ -46,7 +50,7 @@ async function getVideoInfo(url: string) {
 		  "API Limit for nowatermark, please wait 1 second and try again!"
 		);
 	}
-  
+
 	return noWaterJson;
 }
 
@@ -119,8 +123,8 @@ function owoembed(url: URL):string {
 
 async function getFullPath({ pathname, hostname }: URL): Promise<string> {
 	if (pathname.match(/\/@.*\/video\/\d*/gm)) return pathname;
-	if (hostname.includes('vm') && !pathname.includes('favicon.ico')) {
-		let req = await fetch(`https://vm.tiktok.com${pathname}`, { redirect: "manual" });
+	if ((hostname.includes('vm') || hostname.includes('vt'))&& !pathname.includes('favicon.ico')) {
+		let req = await fetch(`https://${hostname}${pathname}`, { redirect: "manual" });
 		let loc = new URL(req['headers'].get('location')!);
 		return loc.pathname;
 	}
@@ -129,8 +133,8 @@ async function getFullPath({ pathname, hostname }: URL): Promise<string> {
 
 export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-		const isApiRequest = request.url.includes("/api/");
-		const url = new URL(request.url.replace('/api/','/'));
+		const isApiRequest = request.url.includes("/api/") || request.url.includes('api.');
+		const url = new URL(request.url.replace('/api/','/').replace('api.',''));
 		const ua = request.headers.get('User-Agent');
 
 		if (url.pathname === "/owoembed") return new Response(owoembed(url), { headers: { 'Content-Type': 'application/json' } });
@@ -169,6 +173,6 @@ export default {
 			ua?.toLocaleLowerCase().includes('telegram') ? "" : `<meta http-equiv="refresh" content="0; url = https://tiktok.com${pathname}" />`
 		]
 
-		return new Response(HTML_EMBED_TEMPLATE.replace("{}", metaTags.join("\n")), { headers: { 'Content-Type': 'text/html' } })
+		return new Response(HTML_EMBED_TEMPLATE.replace("{}", metaTags.join("\n")), { headers: { 'Content-Type': 'text/html', 'Cache-Control': 'max-age=1800' } })
 	},
 };

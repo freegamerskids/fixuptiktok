@@ -8,4 +8,8 @@ When sending a tiktok URL, change `tiktok.com` to `fixuptiktok.com`!
 
 ## API
 
-Add a `/api` to the start of the url (ex. `https://fixuptiktok.com/api/@<username>/video/<video_id>` or `https://vm.fixuptiktok.com/api/<shortener_id>`)
+Add a `/api` to the start of the url
+(ex. `https://fixuptiktok.com/api/@<username>/video/<video_id>` or `https://vm.fixuptiktok.com/api/<shortener_id>`)
+
+or `api.` at the start of the url
+(`https://api.fixuptiktok.com/@<username>/video/<video_id>`)
