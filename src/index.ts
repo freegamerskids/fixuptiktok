@@ -67,8 +67,6 @@ async function getTikwmUrl(path: string): Promise<string> {
 }
 
 async function getVideo(url: URL, ctx:ExecutionContext): Promise<IVideo> {
-	const { pathname } = url;
-
 	const cache = caches.default;
 
 	let cachedResponse = await cache.match(new Request(url.toString()));
@@ -79,7 +77,7 @@ async function getVideo(url: URL, ctx:ExecutionContext): Promise<IVideo> {
 
 	console.log("Cache miss");
 
-	let video = (await getVideoInfo(`https://tiktok.com${pathname}`)).data;
+	let video = (await getVideoInfo(url.toString())).data;
 
 	let videoApi: IVideo = {
 		id: video.id,
@@ -121,29 +119,16 @@ function owoembed(url: URL):string {
 	});
 }
 
-async function getFullPath({ pathname, hostname }: URL): Promise<string> {
-	if (pathname.match(/\/@.*\/video\/\d*/gm)) return pathname;
-	if ((hostname.includes('vm') || hostname.includes('vt')) && !pathname.includes('favicon.ico')) {
-		let req = await fetch(`https://vm.tiktok.com${pathname}`, { redirect: "manual" });
-		let loc = new URL(req['headers'].get('location')!);
-		return loc.pathname;
-	}
-	return ""
-}
-
 export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 		const isApiRequest = request.url.includes("/api/") || request.url.includes('api.');
-		const url = new URL(request.url.replace('/api/','/').replace('api.',''));
+		const url = new URL(request.url.replace('/api/','/').replace('api.','').replace('fixuptiktok.com','tiktok.com'));
 		const ua = request.headers.get('User-Agent');
 
 		if (url.pathname === "/owoembed") return new Response(owoembed(url), { headers: { 'Content-Type': 'application/json' } });
+		if (url.pathname === "") return Response.redirect('https://github.com/freegamerskids/fixuptiktok', 301);
 
-		const fullURL = new URL(`https://${url.hostname}${await getFullPath(url)}`);
-		const { pathname } = fullURL;
-		if (pathname === "") return Response.redirect('https://github.com/freegamerskids/fixuptiktok', 301);
-
-		let videoApi: IVideo = await getVideo(fullURL, ctx);
+		let videoApi: IVideo = await getVideo(url, ctx);
 		if (isApiRequest) return new Response(JSON.stringify(videoApi), { headers: { 'Content-Type': 'application/json' } });
 
 		const stats = `${videoApi.likeCount} ❤️ ${videoApi.commentCount} 💬 ${videoApi.shareCount} 🔁 ${videoApi.views} 👁️`;
@@ -169,8 +154,8 @@ export default {
 
 			`<meta property="og:description" content="${description}" />`,
 
-			`<link rel="alternate" href="https://${url.hostname}/owoembed?text=${encodeURIComponent(description)}&url=https://tiktok.com${pathname}&stats=${encodeURIComponent(`${stats} / Provided by FixUpTiktok`)}" type="application/json+oembed" title="${videoApi.user.nickname}">`,
-			ua?.toLocaleLowerCase().includes('telegram') ? "" : `<meta http-equiv="refresh" content="0; url = https://tiktok.com${pathname}" />`
+			`<link rel="alternate" href="https://${url.hostname}/owoembed?text=${encodeURIComponent(description)}&url=${url.toString()}&stats=${encodeURIComponent(`${stats} / Provided by FixUpTiktok`)}" type="application/json+oembed" title="${videoApi.user.nickname}">`,
+			ua?.toLocaleLowerCase().includes('telegram') ? "" : `<meta http-equiv="refresh" content="0; url = ${url.toString()}" />`
 		]
 
 		return new Response(HTML_EMBED_TEMPLATE.replace("{}", metaTags.join("\n")), { headers: { 'Content-Type': 'text/html', 'Cache-Control': 'max-age=1800' } })
